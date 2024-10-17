@@ -1,39 +1,103 @@
-import React from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Button } from "../components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
-import { PlusCircle, Download, Mail, Star } from 'lucide-react'
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Button } from "../components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { PlusCircle, Download, Mail, LogOut } from 'lucide-react';
+import axiosInstance from '../api/axios';
 
-// Mock data for saved events
-const savedEvents = [
-  { id: 1, title: 'Weekly Cleaning', description: 'Regular house cleaning schedule' },
-  { id: 2, title: 'Monthly Groceries', description: 'Grocery shopping and restocking' },
-  { id: 3, title: 'Rent Payment', description: 'Monthly rent payment reminder' },
-  { id: 4, title: 'Utility Bills', description: 'Payment for electricity, water, and internet' },
-]
+interface Event {
+  _id: string;
+  name: string;
+  description: string;
+  startDate: string;
+  endDate: string;
+  schedules: {
+    date: string;
+    jobs: {
+      name: string;
+      assignee: string;
+    }[];
+  }[];
+}
 
-const DashboardPage = () => {
-  const navigate = useNavigate()
+const DashboardPage: React.FC = () => {
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>('');
+  const navigate = useNavigate();
 
-  const handleDownloadICS = () => {
-    console.log('Downloading ICS file')
-  }
+  useEffect(() => {
+    fetchEvents();
+  }, []);
 
-  const handleSendEmail = () => {
-    console.log('Sending ICS file via email')
-  }
+  const fetchEvents = async () => {
+    try {
+      setLoading(true);
+      const response = await axiosInstance.get<Event[]>('/events');
+      setEvents(response.data);
+      setLoading(false);
+    } catch (err: any) {
+      console.error('Error fetching events:', err);
+      setError(err.response?.data?.message || 'Failed to fetch events');
+      setLoading(false);
+    }
+  };
 
   const handleAddNewEvent = () => {
-    navigate('/create-event')
+    navigate('/create-event');
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    navigate('/login');
+  };
+
+  const handleGenerateICS = async () => {
+    try {
+      const response = await axiosInstance.get('/events/generate-ics', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'events.ics');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error('Error generating ICS:', err);
+      setError('Failed to generate ICS file');
+    }
+  };
+
+  const handleSendEmail = async () => {
+    try {
+      await axiosInstance.post('/events/send-email');
+      alert('Email sent successfully');
+    } catch (err) {
+      console.error('Error sending email:', err);
+      setError('Failed to send email');
+    }
+  };
+
+  if (loading) {
+    return <div className="container mx-auto p-4 text-center">Loading...</div>;
+  }
+
+  if (error) {
+    return <div className="container mx-auto p-4 text-center text-red-500">{error}</div>;
   }
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Dashboard list of events</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <Button onClick={handleLogout} variant="outline">
+          <LogOut className="mr-2 h-4 w-4" /> Logout
+        </Button>
+      </div>
       
       <div className="flex justify-between mb-4">
         <div>
-          <Button onClick={handleDownloadICS} className="mr-2">
+          <Button onClick={handleGenerateICS} className="mr-2">
             <Download className="mr-2 h-4 w-4" /> Download ICS
           </Button>
           <Button onClick={handleSendEmail} variant="outline">
@@ -45,23 +109,44 @@ const DashboardPage = () => {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {savedEvents.map((event) => (
-          <Card key={event.id} className="bg-secondary">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                {event.title}
-              </CardTitle>
-              <Star className="h-4 w-4" />
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground">{event.description}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {events.length === 0 ? (
+        <Card>
+          <CardContent className="p-6 text-center">
+            <p className="text-lg font-semibold">No events found. Create a new event to get started!</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {events.map((event) => (
+            <Card key={event._id} className="bg-secondary">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  {event.name}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-muted-foreground">{event.description}</p>
+                <p className="text-xs mt-2">
+                  {new Date(event.startDate).toLocaleDateString()} - {new Date(event.endDate).toLocaleDateString()}
+                </p>
+                <div className="mt-4">
+                  <h4 className="text-xs font-semibold mb-2">Upcoming Schedules:</h4>
+                  <ul className="text-xs">
+                    {event.schedules.slice(0, 3).map((schedule, index) => (
+                      <li key={index} className="mb-1">
+                        {new Date(schedule.date).toLocaleDateString()}: 
+                        {schedule.jobs.map(job => ` ${job.assignee} (${job.name})`).join(', ')}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
-  )
-}
+  );
+};
 
-export default DashboardPage
+export default DashboardPage;

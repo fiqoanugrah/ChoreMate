@@ -9,6 +9,9 @@ import { InputTags } from "../components/ui/input-tags"
 import { Checkbox } from "../components/ui/checkbox"
 import { Textarea } from "../components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select"
+import axiosInstance from '../api/axios'
+import LoadingPage from './LoadingPage'
+import ConfirmationPage from './ConfirmationPage'
 
 const alertOptions = [
   { value: "none", label: "None" },
@@ -23,32 +26,6 @@ const alertOptions = [
   { value: "2_days", label: "2 days before" },
 ]
 
-const LoadingPage = () => (
-  <div className="container mx-auto p-4 h-screen flex items-center justify-center">
-    <Card className="w-full max-w-md">
-      <CardContent className="p-6 text-center">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-gray-900 mx-auto mb-4"></div>
-        <p className="text-lg font-semibold">
-          Loading.. we are generating your schedules...
-        </p>
-      </CardContent>
-    </Card>
-  </div>
-)
-
-const ConfirmationPage = ({ onBackToDashboard }: { onBackToDashboard: () => void }) => (
-  <div className="container mx-auto p-4 h-screen flex items-center justify-center">
-    <Card className="w-full max-w-md">
-      <CardContent className="p-6 text-center">
-        <h2 className="text-2xl font-bold mb-4">ICS GENERATED</h2>
-        <Button onClick={onBackToDashboard}>
-          Back to Dashboard
-        </Button>
-      </CardContent>
-    </Card>
-  </div>
-)
-
 const CreateEventPage = () => {
   const navigate = useNavigate()
   const [eventName, setEventName] = useState('')
@@ -62,6 +39,7 @@ const CreateEventPage = () => {
   const [alert, setAlert] = useState("none")
   const [isLoading, setIsLoading] = useState(false)
   const [isConfirmed, setIsConfirmed] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     generateDescriptionTemplate()
@@ -98,12 +76,42 @@ const CreateEventPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    const finalDescription = description.replace('[Your custom description will appear here]', customDescription)
-    console.log('New event:', { eventName, teammates, jobs, jobAssignments, jobLimits, description: finalDescription, dateRange, alert })
-    setIsLoading(false)
-    setIsConfirmed(true)
+    setError('')
+    try {
+      const eventData = {
+        name: eventName,
+        teammates: teammates,
+        jobs: jobs.map(job => ({
+          name: job,
+          assigneesPerDay: jobLimits[job] || 1,
+          assignees: teammates.filter(teammate => jobAssignments[job]?.[teammate])
+        })),
+        startDate: dateRange.from,
+        endDate: dateRange.to,
+        description: customDescription || description,
+        alert: alert
+      };
+  
+      const response = await axiosInstance.post('/events', eventData);
+      console.log('Event saved successfully:', response.data);
+      setIsLoading(false);
+      setIsConfirmed(true);
+    } catch (err: any) {
+      setIsLoading(false);
+      console.error('Error saving event:', err);
+      if (err.response) {
+        console.error('Response data:', err.response.data);
+        console.error('Response status:', err.response.status);
+        console.error('Response headers:', err.response.headers);
+        setError(`Server error: ${err.response.data.message || err.response.statusText}`);
+      } else if (err.request) {
+        console.error('Request:', err.request);
+        setError('No response received from server. Please check your connection.');
+      } else {
+        console.error('Error message:', err.message);
+        setError(`Error: ${err.message}`);
+      }
+    }
   }
 
   const handleJobAssignment = (job: string, teammate: string, checked: boolean) => {
@@ -137,7 +145,7 @@ const CreateEventPage = () => {
   }
 
   if (isConfirmed) {
-    return <ConfirmationPage onBackToDashboard={() => navigate('/dashboard')} />
+    return <ConfirmationPage />
   }
 
   return (
@@ -272,7 +280,9 @@ const CreateEventPage = () => {
               </Select>
             </div>
 
-            <Button type="submit">Generate Schedule</Button>
+            {error && <p className="text-red-500">{error}</p>}
+
+            <Button type="submit">Save Schedule</Button>
           </form>
         </CardContent>
       </Card>

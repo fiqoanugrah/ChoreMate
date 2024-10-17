@@ -1,19 +1,31 @@
-import React, { useState, FormEvent } from "react"
-import { Link } from "react-router-dom"
-import { Button } from "../components/ui/button"
-import { Input } from "../components/ui/input"
-import { Label } from "../components/ui/label"
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import axiosInstance from "../api/axios";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const navigate = useNavigate();
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    // Here you would typically make an API call to authenticate the user
-    console.log("Login attempt with:", { email, password })
-    // For now, we're just logging the attempt
-  }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const response = await axiosInstance.post("/auth/login", {
+        email,
+        password,
+      });
+      localStorage.setItem("token", response.data.token);
+      axiosInstance.defaults.headers['Authorization'] = `Bearer ${response.data.token}`;
+      navigate("/dashboard");
+    } catch (err: any) {
+      console.error("Login error:", err.response?.data || err.message);
+      setError(err.response?.data?.message || "Login failed");
+    }
+  };
 
   return (
     <div className="w-full min-h-screen flex items-center justify-center bg-background">
@@ -38,12 +50,7 @@ export default function LoginPage() {
               />
             </div>
             <div className="grid gap-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
-                <Link to="/forgot-password" className="text-sm underline">
-                  Forgot your password?
-                </Link>
-              </div>
+              <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
                 type="password"
@@ -52,18 +59,19 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
+            {error && <p className="text-red-500">{error}</p>}
             <Button type="submit" className="w-full">
               Login
             </Button>
           </form>
-          <div className="text-center text-sm">
+          <p className="px-8 text-center text-sm text-muted-foreground">
             Don't have an account?{" "}
-            <Link to="/signup" className="underline">
+            <Link to="/signup" className="underline underline-offset-4 hover:text-primary">
               Sign up
             </Link>
-          </div>
+          </p>
         </div>
       </div>
     </div>
-  )
+  );
 }
