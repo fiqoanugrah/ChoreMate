@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import axiosInstance from '../api/axios'
 import LoadingPage from './LoadingPage'
 import ConfirmationPage from './ConfirmationPage'
+import { DateRange } from 'react-day-picker'
+import { addDays } from 'date-fns'
 
 const alertOptions = [
   { value: "none", label: "None" },
@@ -26,7 +28,7 @@ const alertOptions = [
   { value: "2_days", label: "2 days before" },
 ]
 
-const CreateEventPage = () => {
+const CreateEventPage: React.FC = () => {
   const navigate = useNavigate()
   const [eventName, setEventName] = useState('')
   const [teammates, setTeammates] = useState<string[]>([])
@@ -35,7 +37,10 @@ const CreateEventPage = () => {
   const [jobLimits, setJobLimits] = useState<Record<string, number>>({})
   const [description, setDescription] = useState('')
   const [customDescription, setCustomDescription] = useState('')
-  const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({ from: undefined, to: undefined })
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: new Date(),
+    to: addDays(new Date(), 7)
+  })
   const [alert, setAlert] = useState("none")
   const [isLoading, setIsLoading] = useState(false)
   const [isConfirmed, setIsConfirmed] = useState(false)
@@ -43,11 +48,11 @@ const CreateEventPage = () => {
 
   useEffect(() => {
     generateDescriptionTemplate()
-  }, [jobAssignments, teammates, jobs, jobLimits, dateRange])
+  }, [jobAssignments, teammates, jobs, jobLimits, dateRange, eventName])
 
   const generateDescriptionTemplate = () => {
-    const startDate = dateRange.from ? new Date(dateRange.from).toLocaleDateString() : 'TBD'
-    const endDate = dateRange.to ? new Date(dateRange.to).toLocaleDateString() : 'TBD'
+    const startDate = dateRange?.from ? new Date(dateRange.from).toLocaleDateString() : 'TBD'
+    const endDate = dateRange?.to ? new Date(dateRange.to).toLocaleDateString() : 'TBD'
 
     let template = `Event: ${eventName}\n`
     template += `Duration: ${startDate} to ${endDate}\n\n`
@@ -77,6 +82,50 @@ const CreateEventPage = () => {
     e.preventDefault()
     setIsLoading(true)
     setError('')
+
+    console.log('Submitting form with the following data:');
+    console.log('Event Name:', eventName);
+    console.log('Teammates:', teammates);
+    console.log('Jobs:', jobs);
+    console.log('Date Range:', dateRange);
+    console.log('Job Assignments:', jobAssignments);
+    console.log('Job Limits:', jobLimits);
+
+    if (!eventName.trim()) {
+      setError('Please enter an event name');
+      setIsLoading(false);
+      return;
+    }
+
+    if (teammates.length === 0) {
+      setError('Please add at least one teammate');
+      setIsLoading(false);
+      return;
+    }
+
+    if (jobs.length === 0) {
+      setError('Please add at least one job');
+      setIsLoading(false);
+      return;
+    }
+
+    if (!dateRange || !dateRange.from || !dateRange.to) {
+      setError('Please select a date range');
+      setIsLoading(false);
+      return;
+    }
+
+    // Check if all jobs have at least one assignee
+    const missingAssignments = jobs.filter(job => 
+      !Object.values(jobAssignments[job] || {}).some(assigned => assigned)
+    );
+
+    if (missingAssignments.length > 0) {
+      setError(`Please assign at least one person to: ${missingAssignments.join(', ')}`);
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const eventData = {
         name: eventName,
@@ -86,12 +135,14 @@ const CreateEventPage = () => {
           assigneesPerDay: jobLimits[job] || 1,
           assignees: teammates.filter(teammate => jobAssignments[job]?.[teammate])
         })),
-        startDate: dateRange.from,
-        endDate: dateRange.to,
+        startDate: dateRange.from.toISOString(),
+        endDate: dateRange.to.toISOString(),
         description: customDescription || description,
         alert: alert
       };
-  
+
+      console.log('Sending event data:', JSON.stringify(eventData, null, 2));
+
       const response = await axiosInstance.post('/events', eventData);
       console.log('Event saved successfully:', response.data);
       setIsLoading(false);
@@ -167,8 +218,9 @@ const CreateEventPage = () => {
             </div>
 
             <div>
-              <Label>Teammates/Roommates</Label>
+              <Label htmlFor="teammates">Teammates/Roommates</Label>
               <InputTags
+                id="teammates"
                 value={teammates}
                 onChange={setTeammates}
                 placeholder="Add teammate"
@@ -176,8 +228,9 @@ const CreateEventPage = () => {
             </div>
 
             <div>
-              <Label>What are the jobs?</Label>
+              <Label htmlFor="jobs">What are the jobs?</Label>
               <InputTags
+                id="jobs"
                 value={jobs}
                 onChange={setJobs}
                 placeholder="Add job"
@@ -204,16 +257,18 @@ const CreateEventPage = () => {
                           {jobs.map(job => (
                             <td key={`${teammate}-${job}`} className="p-2 text-center">
                               <Checkbox
+                                id={`${teammate}-${job}`}
                                 checked={jobAssignments[job]?.[teammate] || false}
                                 onCheckedChange={(checked) => handleJobAssignment(job, teammate, checked as boolean)}
-                                className="mx-auto"
+                                aria-label={`Assign ${teammate} to ${job}`}
                               />
                             </td>
                           ))}
                           <td className="p-2 text-center">
                             <Checkbox
+                              id={`${teammate}-all`}
                               onCheckedChange={(checked) => handleAllAssignment(teammate, checked as boolean)}
-                              className="mx-auto"
+                              aria-label={`Assign ${teammate} to all jobs`}
                             />
                           </td>
                         </tr>
@@ -241,10 +296,14 @@ const CreateEventPage = () => {
             )}
 
             <div>
-              <Label>How about the schedules?</Label>
+              <Label htmlFor="dateRange">How about the schedules?</Label>
               <DatePickerWithRange
+                id="dateRange"
                 date={dateRange}
-                setDate={(newDateRange) => setDateRange(newDateRange as { from: Date | undefined; to: Date | undefined })}
+                setDate={(newDateRange) => {
+                  console.log('New date range:', newDateRange);
+                  setDateRange(newDateRange);
+                }}
               />
             </div>
 
@@ -256,6 +315,7 @@ const CreateEventPage = () => {
                 readOnly
                 className="mb-2 h-64"
               />
+              <Label htmlFor="customDescription">Additional Details</Label>
               <Textarea
                 id="customDescription"
                 placeholder="Add any additional description here"
@@ -267,7 +327,7 @@ const CreateEventPage = () => {
             <div>
               <Label htmlFor="alert">Alert</Label>
               <Select value={alert} onValueChange={setAlert}>
-                <SelectTrigger>
+                <SelectTrigger id="alert">
                   <SelectValue placeholder="Select alert time" />
                 </SelectTrigger>
                 <SelectContent>
