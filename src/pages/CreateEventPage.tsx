@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
 import { Label } from "../components/ui/label"
@@ -29,7 +28,6 @@ const alertOptions = [
 ]
 
 const CreateEventPage: React.FC = () => {
-  const navigate = useNavigate()
   const [eventName, setEventName] = useState('')
   const [teammates, setTeammates] = useState<string[]>([])
   const [jobs, setJobs] = useState<string[]>([])
@@ -222,7 +220,11 @@ const CreateEventPage: React.FC = () => {
               <InputTags
                 id="teammates"
                 value={teammates}
-                onChange={setTeammates}
+                onChange={(newValue) => {
+                  if (Array.isArray(newValue)) {
+                    setTeammates(newValue);
+                  }
+                }}
                 placeholder="Add teammate"
               />
             </div>
@@ -232,7 +234,11 @@ const CreateEventPage: React.FC = () => {
               <InputTags
                 id="jobs"
                 value={jobs}
-                onChange={setJobs}
+                onChange={(newValue) => {
+                  if (Array.isArray(newValue)) {
+                    setJobs(newValue);
+                  }
+                }}
                 placeholder="Add job"
               />
             </div>

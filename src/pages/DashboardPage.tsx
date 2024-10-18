@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { PlusCircle, Download, Mail, LogOut } from 'lucide-react';
+import { PlusCircle, Download, LogOut } from 'lucide-react';
 import axiosInstance from '../api/axios';
 
 interface Event {
@@ -54,8 +54,8 @@ const DashboardPage: React.FC = () => {
 
   const handleGenerateICS = async () => {
     try {
-      const response = await axiosInstance.get('/events/generate-ics', { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const response = await axiosInstance.get<Blob>('/events/generate-ics', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(response.data);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', 'events.ics');
@@ -68,15 +68,15 @@ const DashboardPage: React.FC = () => {
     }
   };
 
-  const handleSendEmail = async () => {
-    try {
-      await axiosInstance.post('/events/send-email');
-      alert('Email sent successfully');
-    } catch (err) {
-      console.error('Error sending email:', err);
-      setError('Failed to send email');
-    }
-  };
+  // const handleSendEmail = async () => {
+  //   try {
+  //     await axiosInstance.post('/events/send-email');
+  //     alert('Email sent successfully');
+  //   } catch (err) {
+  //     console.error('Error sending email:', err);
+  //     setError('Failed to send email');
+  //   }
+  // };
 
   if (loading) {
     return <div className="container mx-auto p-4 text-center">Loading...</div>;
@@ -100,9 +100,9 @@ const DashboardPage: React.FC = () => {
           <Button onClick={handleGenerateICS} className="mr-2">
             <Download className="mr-2 h-4 w-4" /> Download ICS
           </Button>
-          <Button onClick={handleSendEmail} variant="outline">
+          {/* <Button onClick={handleSendEmail} variant="outline">
             <Mail className="mr-2 h-4 w-4" /> Send to Email
-          </Button>
+          </Button> */}
         </div>
         <Button onClick={handleAddNewEvent}>
           <PlusCircle className="mr-2 h-4 w-4" /> Add New Event

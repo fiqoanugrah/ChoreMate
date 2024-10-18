@@ -1,4 +1,3 @@
-import React from 'react'
 import { DateRange, DayPicker } from 'react-day-picker'
 import { addYears } from 'date-fns'
 import 'react-day-picker/dist/style.css'

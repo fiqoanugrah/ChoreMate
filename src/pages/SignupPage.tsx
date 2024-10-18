@@ -5,6 +5,10 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import axiosInstance from "../api/axios";
 
+interface RegisterResponse {
+  token: string;
+}
+
 export default function SignupPage() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -20,13 +24,13 @@ export default function SignupPage() {
       return;
     }
     try {
-      const response = await axiosInstance.post("/auth/register", {
+      const response = await axiosInstance.post<RegisterResponse>("/auth/register", {
         username,
         email,
         password,
       });
       localStorage.setItem("token", response.data.token);
-      axiosInstance.defaults.headers['Authorization'] = `Bearer ${response.data.token}`;
+      axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
       navigate("/dashboard");
     } catch (err: any) {
       console.error("Registration error:", err.response?.data || err.message);

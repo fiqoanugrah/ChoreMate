@@ -24,6 +24,7 @@ axiosInstance.interceptors.request.use(
           localStorage.removeItem('token');
           window.location.href = '/login';
         } else {
+          config.headers = config.headers || {};
           config.headers['Authorization'] = `Bearer ${token}`;
         }
       } catch (error) {

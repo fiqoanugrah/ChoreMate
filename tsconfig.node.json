@@ -1,24 +1,10 @@
 {
   "compilerOptions": {
-    "noEmitOnError": true,
     "composite": true,
-    "target": "ES2022",
-    "lib": ["ES2023"],
     "module": "ESNext",
-    "skipLibCheck": true,
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"]
-    },
     "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    "noEmit": true,   // Add noEmit here to allow using allowImportingTsExtensions
-    "isolatedModules": true,
-    "moduleDetection": "force",
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "allowSyntheticDefaultImports": true,
+    "noEmit": false
   },
   "include": ["vite.config.ts"]
 }

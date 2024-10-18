@@ -5,6 +5,10 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import axiosInstance from "../api/axios";
 
+interface LoginResponse {
+  token: string;
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -14,12 +18,12 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await axiosInstance.post("/auth/login", {
+      const response = await axiosInstance.post<LoginResponse>("/auth/login", {
         email,
         password,
       });
       localStorage.setItem("token", response.data.token);
-      axiosInstance.defaults.headers['Authorization'] = `Bearer ${response.data.token}`;
+      axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
       navigate("/dashboard");
     } catch (err: any) {
       console.error("Login error:", err.response?.data || err.message);
